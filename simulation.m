@@ -3,12 +3,12 @@ clear;
 clc;
 
 % Simulation parameters
-max_radius = 5;
-speed = 100; % Speed of the zigzag pattern
+max_radius = 1;
+speed = 10000; % Speed of the zigzag pattern
 field_speed = 10; % Speed of the field center movement
 total_time = 600; % total simulation time in seconds
 dt = 0.0001; % smaller time step for smoother simulation
-fps = 30; % Frames per second for playback
+fps = 120; % Frames per second for playback
 update_interval = 1 / fps; % update the plot every 1/fps seconds
 
 % Field parameters
@@ -17,7 +17,7 @@ field_center = [0, 0]; % Initial center of the field
 initial_direction = [10, 3]; % Initial direction of the field movement
 
 % Random factor for bouncing
-random_factor = 0.5; % Random factor for the bouncing behavior
+random_factor = 2; % Random factor for the bouncing behavior
 
 % Plot parameters
 plot_size = [-100 100 -100 100 -100 100]; % Size of the plot [xmin xmax ymin ymax zmin zmax]
@@ -193,11 +193,6 @@ function [theta, phi, x_end, y_end, z_end] = laser_control(x, z, dist)
     y_origin = 0;
     z_origin = 0;
 
-    % End point coordinates
-    x_end = x;
-    z_end = z;
-    y_end = dist;
-
     % Calculate distances
     d_xy = sqrt(x^2 + z^2);
     d_total = sqrt(d_xy^2 + dist^2);
@@ -205,34 +200,42 @@ function [theta, phi, x_end, y_end, z_end] = laser_control(x, z, dist)
     % Calculate angles
     theta = atan2(z, x);  % Azimuth angle in the xy-plane
     phi = acos(dist / d_total);  % Elevation angle from the z-axis
+
+    % Calculate end point coordinates using spherical coordinates
+    %BE CAREFULL HERE OUR ERROR THAT HAPPEND ON 03.06 COULD BE SOMEWHERE
+    %HERE MAKE SURE, THAT X Y Z ARE CORRECTLY IMPLEMEND IN THE REAL SYSTEM
+    x_end = dist * sin(phi) * cos(theta);
+    z_end = dist * sin(phi) * sin(theta);
+    y_end = dist * cos(phi);
 end
 
 function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size)
-% Function to plot the laser in 3D space within a configurable volume
-% Inputs:
-%   x_end, y_end, z_end: coordinates of the end point of the laser
-%   x_vals, y_vals, z_vals: arrays of end point coordinates
-%   plot_size: size of the plot [xmin xmax ymin ymax zmin zmax] (1x6 vector)
-%   marker_size: size of the markers
+    % Function to plot the laser in 3D space within a configurable volume
+    % Inputs:
+    %   x_end, y_end, z_end: coordinates of the end point of the laser
+    %   x_vals, y_vals, z_vals: arrays of end point coordinates
+    %   plot_size: size of the plot [xmin xmax ymin ymax zmin zmax] (1x6 vector)
+    %   marker_size: size of the markers
 
-persistent h scatter_handle plot_initialized;
-if isempty(plot_initialized)
-    figure;
-    h = plot3([0, x_end], [0, y_end], [0, z_end], 'r-', 'LineWidth', 2);
-    hold on;
-    scatter_handle = scatter3(x_vals, y_vals, z_vals, marker_size, 'bo', 'filled');
-    xlabel('X');
-    ylabel('Y');
-    zlabel('Z');
-    grid on;
-    axis(plot_size);
-    axis equal;
-    plot_initialized = true;
-else
-    set(h, 'XData', [0, x_end], 'YData', [0, y_end], 'ZData', [0, z_end]);
-    set(scatter_handle, 'XData', x_vals, 'YData', y_vals, 'ZData', z_vals, 'SizeData', marker_size);
-    axis(plot_size);
-    drawnow;
+    persistent h scatter_handle plot_initialized;
+    if isempty(plot_initialized) || ~isvalid(h) || ~isvalid(scatter_handle)
+        % Initialize the plot
+        figure;
+        h = plot3([0, x_end], [0, y_end], [0, z_end], 'r-', 'LineWidth', 2);
+        hold on;
+        scatter_handle = scatter3(x_vals, y_vals, z_vals, marker_size, 'bo', 'filled');
+        xlabel('X');
+        ylabel('Y');
+        zlabel('Z');
+        grid on;
+        axis(plot_size);
+        axis equal;
+        plot_initialized = true;
+    else
+        % Update the plot
+        set(h, 'XData', [0, x_end], 'YData', [0, y_end], 'ZData', [0, z_end]);
+        set(scatter_handle, 'XData', x_vals, 'YData', y_vals, 'ZData', z_vals, 'SizeData', marker_size);
+        axis(plot_size);
+        drawnow;
+    end
 end
-end
-
