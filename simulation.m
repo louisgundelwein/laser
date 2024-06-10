@@ -204,9 +204,9 @@ function [theta, phi, x_end, y_end, z_end] = laser_control(x, z, dist)
     % Calculate end point coordinates using spherical coordinates
     %BE CAREFULL HERE OUR ERROR THAT HAPPEND ON 03.06 COULD BE SOMEWHERE
     %HERE MAKE SURE, THAT X Y Z ARE CORRECTLY IMPLEMEND IN THE REAL SYSTEM
-    x_end = dist * sin(phi) * cos(theta);
-    z_end = dist * sin(phi) * sin(theta);
-    y_end = dist * cos(phi);
+    x_end = dist * tan(phi) * cos(theta);
+    y_end = dist; % Corrected as the fixed distance from the laser origin in y-direction
+    z_end = dist * tan(phi) * sin(theta);
 end
 
 function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size)
