@@ -142,10 +142,11 @@ function [field_x, field_y] = field_motion(t, field_size, field_speed, field_cen
     max_bound = field_center + half_size;
     
     % Initialize the field position and velocity
-    persistent field_position field_velocity last_update_time;
+    persistent field_position field_velocity field_direction last_update_time;
     if isempty(field_position)
         field_position = field_center;
-        field_velocity = field_speed * initial_direction; % Initial velocity
+        field_direction = initial_direction; % Initial direction
+        field_velocity = field_speed; % Initial velocity magnitude
         last_update_time = t;
     end
 
@@ -153,15 +154,18 @@ function [field_x, field_y] = field_motion(t, field_size, field_speed, field_cen
     dt = t - last_update_time;
 
     % Update the field position
-    field_position = field_position + field_velocity * dt;
+    field_position = field_position + field_direction * field_velocity * dt;
 
-    % Check for boundary collisions and reverse velocity with random factor if necessary
+    % Check for boundary collisions and reverse direction with random factor if necessary
     for i = 1:2
         if field_position(i) <= min_bound(i) || field_position(i) >= max_bound(i)
-            field_velocity(i) = -field_velocity(i) + (rand - 0.5) * random_factor;
+            field_direction(i) = -field_direction(i) + (rand - 0.5) * random_factor;
             field_position(i) = max(min(field_position(i), max_bound(i)), min_bound(i));
         end
     end
+
+    % Normalize the field direction to prevent excessive changes
+    field_direction = field_direction / norm(field_direction);
 
     % Update the last update time
     last_update_time = t;
@@ -188,26 +192,22 @@ function [theta, phi, x_end, y_end, z_end] = laser_control(x, z, dist)
     %   phi: angle from the z-axis (elevation angle)
     %   x_end, y_end, z_end: coordinates of the end point of the laser
 
-    % Laser origin
-    x_origin = 0;
-    y_origin = 0;
-    z_origin = 0;
+    y = dist;
 
-    % Calculate distances
-    d_xy = sqrt(x^2 + z^2);
-    d_total = sqrt(d_xy^2 + dist^2);
+    azimuth = atan2(y,x);
+    elevation = atan2(z,sqrt(x.^2 + y.^2));
+    r = sqrt(x.^2 + y.^2 + z.^2);
 
-    % Calculate angles
-    theta = atan2(z, x);  % Azimuth angle in the xy-plane
-    phi = acos(dist / d_total);  % Elevation angle from the z-axis
-
-    % Calculate end point coordinates using spherical coordinates
-    %BE CAREFULL HERE OUR ERROR THAT HAPPEND ON 03.06 COULD BE SOMEWHERE
-    %HERE MAKE SURE, THAT X Y Z ARE CORRECTLY IMPLEMEND IN THE REAL SYSTEM
-    x_end = dist * tan(phi) * cos(theta);
-    y_end = dist; % Corrected as the fixed distance from the laser origin in y-direction
-    z_end = dist * tan(phi) * sin(theta);
+    %could be swapped
+    theta = azimuth;
+    phi = elevation;
+    
+    
+    x_end = r .* cos(elevation) .* cos(azimuth);
+    y_end = r .* cos(elevation) .* sin(azimuth);
+    z_end = r .* sin(elevation);
 end
+
 
 function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size)
     % Function to plot the laser in 3D space within a configurable volume
