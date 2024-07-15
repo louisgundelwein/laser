@@ -3,10 +3,10 @@ clear;
 clc;
 
 % Simulation parameters
-max_radius = 1;
-speed = 10000; % Speed of the zigzag pattern
+max_radius = 30;
+speed = 1000; % Speed of the zigzag pattern
 field_speed = 10; % Speed of the field center movement
-total_time = 600; % total simulation time in seconds
+total_time = 15; % total simulation time in seconds
 dt = 0.0001; % smaller time step for smoother simulation
 fps = 120; % Frames per second for playback
 update_interval = 1 / fps; % update the plot every 1/fps seconds
@@ -31,6 +31,8 @@ num_steps = floor(total_time / dt) + 1;
 positions = zeros(num_steps, 3); % to store [x, z, y] positions (y and z swapped)
 times = zeros(num_steps, 1); % to store time steps
 field_positions = zeros(num_steps, 2); % to store field center positions
+thetas = zeros(num_steps, 1); % to store theta values
+phis = zeros(num_steps, 1); % to store phi values
 
 % Main simulation loop to calculate positions
 index = 1;
@@ -46,8 +48,25 @@ for t = 0:dt:total_time
     % Store the computed positions and time
     positions(index, :) = [x_end, z_end, y_end]; % Note the swap of y and z
     times(index) = t;
+    thetas(index) = theta; % Store theta
+    phis(index) = phi; % Store phi
     index = index + 1;
 end
+
+% Plot Theta and Phi after the simulation
+figure;
+subplot(2,1,1);
+plot(times, thetas);
+xlabel('Time (s)');
+ylabel('Theta (rad)');
+title('Theta over Time');
+
+subplot(2,1,2);
+plot(times, phis);
+xlabel('Time (s)');
+ylabel('Phi (rad)');
+title('Phi over Time');
+
 
 % Animation loop to update the plot
 num_frames = floor(total_time / update_interval);
@@ -68,9 +87,12 @@ for frame = 1:num_frames
     z_vals = [z_vals, z_end];
     
     % Plot the laser in 3D space
-    plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size); % Note the order of arguments
+    plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size, field_positions(idx, :), max_radius, zigzag_dist, field_size); % Note the order of arguments
     pause(update_interval);
 end
+
+
+
 
 function [x, z] = zigzag_laser(t, max_radius, speed, field_center)
     % Function to generate a smooth zigzag motion for the laser within a circle
@@ -209,24 +231,40 @@ function [theta, phi, x_end, y_end, z_end] = laser_control(x, z, dist)
 end
 
 
-function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size)
+
+
+function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_size, field_center, max_radius, zigzag_dist, field_size)
     % Function to plot the laser in 3D space within a configurable volume
     % Inputs:
     %   x_end, y_end, z_end: coordinates of the end point of the laser
     %   x_vals, y_vals, z_vals: arrays of end point coordinates
     %   plot_size: size of the plot [xmin xmax ymin ymax zmin zmax] (1x6 vector)
     %   marker_size: size of the markers
+    %   field_center: current field center coordinates [x, y] (1x2 vector)
+    %   max_radius: maximum radius of the zigzag circle
+    %   zigzag_dist: distance from the laser origin to the plane of the zigzag motion
+    %   field_size: size of the field (scalar)
 
-    persistent h scatter_handle plot_initialized;
+    persistent h scatter_handle plot_initialized field_marker_handle radius_handle field_rectangle_handle theta;
     if isempty(plot_initialized) || ~isvalid(h) || ~isvalid(scatter_handle)
         % Initialize the plot
         figure;
         h = plot3([0, x_end], [0, y_end], [0, z_end], 'r-', 'LineWidth', 2);
         hold on;
         scatter_handle = scatter3(x_vals, y_vals, z_vals, marker_size, 'bo', 'filled');
+        field_marker_handle = plot3(field_center(1), zigzag_dist, field_center(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+        theta = linspace(0, 2*pi, 100);
+        radius_handle = plot3(field_center(1) + max_radius*cos(theta), zigzag_dist*ones(size(theta)), field_center(2) + max_radius*sin(theta), 'g-');
+        
+        % Create static field rectangle
+        half_size = field_size / 2;
+        x_rect = [-half_size, half_size, half_size, -half_size, -half_size];
+        z_rect = [-half_size, -half_size, half_size, half_size, -half_size];
+        field_rectangle_handle = plot3(x_rect, zigzag_dist*ones(size(x_rect)), z_rect, 'b-');
+        
         xlabel('X');
-        ylabel('Y');
-        zlabel('Z');
+        ylabel('Z');
+        zlabel('Y');
         grid on;
         axis(plot_size);
         axis equal;
@@ -235,7 +273,15 @@ function plot3D(x_end, y_end, z_end, x_vals, y_vals, z_vals, plot_size, marker_s
         % Update the plot
         set(h, 'XData', [0, x_end], 'YData', [0, y_end], 'ZData', [0, z_end]);
         set(scatter_handle, 'XData', x_vals, 'YData', y_vals, 'ZData', z_vals, 'SizeData', marker_size);
+        set(field_marker_handle, 'XData', field_center(1), 'YData', zigzag_dist, 'ZData', field_center(2));
+        set(radius_handle, 'XData', field_center(1) + max_radius*cos(theta), 'YData', zigzag_dist*ones(size(theta)), 'ZData', field_center(2) + max_radius*sin(theta));
+        
+        
+        
         axis(plot_size);
         drawnow;
     end
 end
+
+
+
